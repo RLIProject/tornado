@@ -15,9 +15,12 @@ class SuperDetector:
         self.RUNTIME = 0
         self.TOTAL_RUNTIME = 0
 
-    def detect(self, pr):
+    def detect(self, pr, confidence=False):
         t1 = time.perf_counter()
-        warning_status, drift_status = self.run(pr)
+        if confidence:
+            warning_status, drift_status = self.run(pr, confidence)
+        else:
+            warning_status, drift_status = self.run(pr)
         t2 = time.perf_counter()
         delta_t = (t2 - t1) * 1000  # in milliseconds
         self.RUNTIME += delta_t
@@ -32,3 +35,4 @@ class SuperDetector:
 
     def get_settings(self):
         raise NotImplementedError('THE RESET FUNCTION HAS NOT BEEN DEFINED IN THE CHILD')
+
