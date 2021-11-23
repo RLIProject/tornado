@@ -12,12 +12,12 @@ from pympler import asizeof
 
 import copy
 
-from archiver.archiver import Archiver
-from evaluators.classifier_evaluator import PredictionEvaluator
-from plotter.performance_plotter import *
-from plotter.optimal_plotter import OptimalPairPlotter
-from filters.score_processor import ScoreProcessor
-from filters.attribute_handlers import *
+from tornado_mod.archiver.archiver import Archiver
+from tornado_mod.evaluators.classifier_evaluator import PredictionEvaluator
+from tornado_mod.plotter.performance_plotter import *
+from tornado_mod.plotter.optimal_plotter import OptimalPairPlotter
+from tornado_mod.filters.score_processor import ScoreProcessor
+from tornado_mod.filters.attribute_handlers import *
 
 # fp_level = 10
 # fn_level = 2
@@ -28,7 +28,7 @@ class PrequentialMultiPairs:
     and evaluate them prequentially, and calculated score of each pair."""
 
     def __init__(self, pairs, attributes, attributes_scheme,
-                 actual_drift_points, drift_acceptance_interval, w_vec, project, color_set, legend_param=False):
+                 actual_drift_points, drift_acceptance_interval, w_vec, project, color_set=None, legend_param=False):
 
         self.__instance_counter = 0
         self.__num_rubbish = 0
@@ -113,6 +113,7 @@ class PrequentialMultiPairs:
             for pair in self.pairs:
                 learner = pair[0]
                 detector = pair[1]
+                #detector.reset()  # todo GLORIA 20210904
                 index = self.pairs.index(pair)
 
                 # ---------------------
@@ -132,6 +133,7 @@ class PrequentialMultiPairs:
                 #  PREQUENTIAL LEARNING
                 # ----------------------
                 if learner.is_ready():
+
                     real_class = r[len(r) - 1]
                     predicted_class = learner.do_testing(r)
 
@@ -139,10 +141,16 @@ class PrequentialMultiPairs:
                     if real_class != predicted_class:
                         prediction_status = False
 
+                    if detector.DETECTOR_NAME == "CDDM" or detector.DETECTOR_NAME == "BayesDriftDetector" \
+                            or detector.DETECTOR_NAME == "BayesMcdiarmid": # todo Gloria 19/08/2021
+                        confidence = max(learner.get_prediction_prob_list(r))
+                        warning_status, drift_status = detector.detect(prediction_status, confidence)
+                    else:
+                        warning_status, drift_status = detector.detect(prediction_status)
+
                     # -----------------------
                     #  ANY DRIFTS DETECTED?
                     # -----------------------
-                    warning_status, drift_status = detector.detect(prediction_status)
                     if drift_status:
 
                         # APPEND 1 INTO LOCATED DRIFT POINTS
@@ -250,7 +258,8 @@ class PrequentialMultiPairs:
             self.score_counter += 1
 
         self.store_stats()
-        self.plot()
+        #TODO GLORIA
+#        self.plot()
         self.archive()
         self.print_stats()
 
@@ -340,4 +349,3 @@ class PrequentialMultiPairs:
             learner_stats = self.learners_stats[index][len(self.learners_stats[index]) - 1]
             detector_stats = self.detectors_stats[index][len(self.detectors_stats[index]) - 1]
             print(learner_detector, learner_stats, detector_stats)
-
